@@ -1,6 +1,3 @@
-#import required libraries
-from pickle import TRUE
-from socket import if_nametoindex
 import  rasterio, numpy, os
 #import sklearn, sys
 
