@@ -4,7 +4,6 @@ def main():
     imagedir = ".../IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
     dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
-    #dirr60m = str(imagedir + "/R60m/")
     
     f = os.path.exists(dirr10m)
     if f == True:    
