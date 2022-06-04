@@ -1,7 +1,7 @@
 # DP_SGL
 
 Czech:
-Tento git obsahuje kod k diplomove praci studenta Jiriho Mora Prirodovedecke fakulty Univerzity Karlovy. 
+Tento git obsahuje kod k diplomove praci studenta Prirodovedecke fakulty Univerzity Karlovy Jiriho Mora. 
 Prace je zamerena na detekci supraglacialnich jezer ze SAR a optickych dat DPZ.
 
 English:
