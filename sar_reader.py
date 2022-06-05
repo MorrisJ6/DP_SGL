@@ -15,7 +15,7 @@ def main():
                 hvpath = str(sarreader + hv) # cesta ke snimku HV polarizaci
                 hvraster = rasterio.open(hvpath, driver = "GTiff") # cteni snimku s HV polarizaci
     else:
-        print("Slozka neobsahuje pozadovane SAR snimky!")
+        print("Slozka obsahujici SAR snimky neexistuje!")
         return
 
 if __name__ == "__main__":
