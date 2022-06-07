@@ -8,7 +8,7 @@ def main():
     imagedir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
     dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
-    #dirr60m?
+    #dirr60m = str(imagedir + "/R60m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
     
 # Nahrani optickych snimku
     f = os.path.exists(dirr10m)
@@ -34,7 +34,7 @@ def main():
                 b8 = r
                 b8path = str(dirr10m + b8) # cesta ke snimku blizkeho infracerveneho pasma
                 b8raster = rasterio.open(b8path, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
-                nir4 = b8raster.read().astype("float32")
+                nir1 = b8raster.read().astype("float32")
             else:
                 continue
     else: 
@@ -49,26 +49,26 @@ def main():
                 b5 = r
                 b5path = str(dirr20m + b5) # cesta ke snimku modreho pasma
                 b5raster = rasterio.open(b5path, driver = "JP2OpenJPEG") # cteni snimku modreho pasma
-                nir1reader = b5raster.read().astype("float32")
-                nir1 = scipy.ndimage.zoom(nir1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge1reader = b5raster.read().astype("float32")
+                rededge1 = scipy.ndimage.zoom(rededge1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
             elif r.endswith("_B06_20m.jp2"):
                 b6 = r
                 b6path = str(dirr20m + b6) # cesta ke snimku zelenho pasma
                 b6raster = rasterio.open(b6path, driver = "JP2OpenJPEG") # cteni snimku zeleneho pasma
-                nir2reader = b6raster.read().astype("float32")
-                nir2 = scipy.ndimage.zoom(nir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge2reader = b6raster.read().astype("float32")
+                rededge2 = scipy.ndimage.zoom(rededge2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
             elif r.endswith("_B07_20m.jp2"):
                 b7 = r
                 b7path = str(dirr20m + b7) # cesta ke snimku cerveneho pasma
                 b7raster = rasterio.open(b7path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
-                nir3reader = b7raster.read().astype("float32")
-                nir3 = scipy.ndimage.zoom(nir3reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge3reader = b7raster.read().astype("float32")
+                rededge3 = scipy.ndimage.zoom(rededge3reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
             elif r.endswith("_B8A_20m.jp2"):
                 b8A = r
                 b8Apath = str(dirr20m + b8A) # cesta ke snimku blizkeho infracerveneho pasma
                 b8Araster = rasterio.open(b8Apath, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
-                nir5reader = b8Araster.read().astype("float32")
-                nir5 = scipy.ndimage.zoom(nir5reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                nir2reader = b8Araster.read().astype("float32")
+                nir2 = scipy.ndimage.zoom(nir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
             elif r.endswith("_B11_20m.jp2"):
                 b11 = r
                 b11path = str(dirr20m + b11) # cesta ke snimku cerveneho pasma
@@ -85,34 +85,36 @@ def main():
                 continue
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
-      
+
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
     
     #NDWIice blue, red
-    #print("--------------------------NDWIice----------------------------------------")
+    #"--------------------------NDWIice----------------------------------------"
     NDWIice = numpy.divide((blue - red), (blue + red), out = numpy.zeros_like(blue - red), where = (blue + red) != 0)
-    #print(NDWIice)
 
     #NDSI green, swir1
-    #print("-----------------------------NDSI----------------------------------------")
+    #"-----------------------------NDSI----------------------------------------"
     NDSI = numpy.divide((green - swir1), (green + swir1), out = numpy.zeros_like(green - swir1), where = (green + swir1) != 0)
-    #print(NDSI)
 
     #TCwet blue, green, red, nir4, swir1, swir2
-    #print("-----------------------------TCwet---------------------------------------")
-    TCwet = numpy.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir4 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32") 
-    #print(TCwet)
+    #"-----------------------------TCwet---------------------------------------"
+    TCwet = numpy.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir1 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32") 
 
     #AWEIsh blue, green, nir, swir1, swir2
-    #print("-----------------------------AWEIsh--------------------------------------")
-    AWEIsh = numpy.array(blue + 2.5 * green - 1.5 * (nir4+swir1) - 0.25 * swir2, dtype = "float32")
-    #print(AWEIsh)
+    #"-----------------------------AWEIsh--------------------------------------"
+    AWEIsh = numpy.array(blue + 2.5 * green - 1.5 * (nir1 + swir1) - 0.25 * swir2, dtype = "float32")
 
     #Aweinsh  green, nir4, swir1, swir2
-    #print("-----------------------------AWEInsh-------------------------------------")
-    AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir4 + 2.75 * 2,75 * swir2), dtype = "float32")
-    #print(AWEInsh)
+    #"-----------------------------AWEInsh-------------------------------------"
+    AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * 2.75 * swir2), dtype = "float32")
 
+    #print(numpy.size(blue))
+    #print(numpy.size(swir1))
+    #print(numpy.size(NDSI))
+    #print(numpy.size(AWEInsh))
+
+    #stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
+    #print(stack)
 
 #-----SAR-----
 # Nahrani SAR snimku
