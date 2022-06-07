@@ -86,25 +86,33 @@ def main():
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
       
-# Vypocet indexu TCwet, AWEI, NDWIice, NDSI
-    
-    
-    #print(blue, green, red, nir1, nir2, nir3, nir4, nir5, swir1, swir2)
+# Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
     
     #NDWIice blue, red
+    #print("--------------------------NDWIice----------------------------------------")
     NDWIice = numpy.divide((blue - red), (blue + red), out = numpy.zeros_like(blue - red), where = (blue + red) != 0)
+    #print(NDWIice)
 
     #NDSI green, swir1
+    #print("-----------------------------NDSI----------------------------------------")
     NDSI = numpy.divide((green - swir1), (green + swir1), out = numpy.zeros_like(green - swir1), where = (green + swir1) != 0)
+    #print(NDSI)
 
     #TCwet blue, green, red, nir4, swir1, swir2
-    TCwet = numpy.where(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir4 - 0.7112 * swir1 - 0.4572 * swir2) 
+    #print("-----------------------------TCwet---------------------------------------")
+    TCwet = numpy.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir4 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32") 
+    #print(TCwet)
 
     #AWEIsh blue, green, nir, swir1, swir2
-    AWEIsh = numpy.where(blue + 2.5 * green - 1.5 * (nir4+swir1) - 0.25 * swir2)
+    #print("-----------------------------AWEIsh--------------------------------------")
+    AWEIsh = numpy.array(blue + 2.5 * green - 1.5 * (nir4+swir1) - 0.25 * swir2, dtype = "float32")
+    #print(AWEIsh)
 
     #Aweinsh  green, nir4, swir1, swir2
-    AWEInsh = numpy.where(4 * (green - swir1) - (0.25 * nir4 + 2.75 * 2,75 * swir2))
+    #print("-----------------------------AWEInsh-------------------------------------")
+    AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir4 + 2.75 * 2,75 * swir2), dtype = "float32")
+    #print(AWEInsh)
+
 
 #-----SAR-----
 # Nahrani SAR snimku
