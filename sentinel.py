@@ -1,5 +1,5 @@
-import  rasterio, numpy, os, scipy.ndimage, time
-#import sklearn, sys
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble
+#import sys
 
 def main():
     print("Inicializuji")
@@ -113,8 +113,10 @@ def main():
     #print(numpy.size(NDSI))
     #print(numpy.size(AWEInsh))
 
-    #stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
-    #print(stack)
+    stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
+    print(stack)
+
+    #classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 15)
 
 #-----SAR-----
 # Nahrani SAR snimku
