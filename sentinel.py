@@ -1,4 +1,4 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, osgeo.gdal
 #import sys
 
 def main():
@@ -86,6 +86,7 @@ def main():
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
 
+
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
     
     #NDWIice blue, red
@@ -106,17 +107,24 @@ def main():
 
     #Aweinsh  green, nir4, swir1, swir2
     #"-----------------------------AWEInsh-------------------------------------"
-    AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * 2.75 * swir2), dtype = "float32")
+    AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
 
     #print(numpy.size(blue))
     #print(numpy.size(swir1))
     #print(numpy.size(NDSI))
     #print(numpy.size(AWEInsh))
 
-    stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
-    print(stack)
+    #stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
+    #print(stack)
 
     #classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 15)
+
+# Parametry pro tvorbu vystupniho rastru
+    rows_source = b2raster.height
+    cols_source = b2raster.width
+    transform_source = b2raster.transform
+    reference_system_source = b2raster.crs
+    print(rows_source, cols_source, transform_source, reference_system_source) 
 
 #-----SAR-----
 # Nahrani SAR snimku
