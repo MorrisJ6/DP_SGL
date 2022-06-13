@@ -89,7 +89,8 @@ def main():
     # Smazani nepotrebnych promennych
     del b2, b3, b4, b5, b6, b7, b8, b8A, b11, b12, b2path, b3path, b4path, b5path, b6path, b7path, b8path, b8Apath, b11path, b12path
     del b3raster, b4raster, b5raster, b6raster, b7raster, b8raster, b8Araster, b11raster, b12raster
-    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader
+    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader, f, imagedir, imagedir, directR10m, 
+    del directR20m, dirr10m, dirr20m
 
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
     
