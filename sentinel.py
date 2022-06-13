@@ -85,7 +85,11 @@ def main():
                 continue
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
-
+    
+    # Smazani nepotrebnych promennych
+    del b2, b3, b4, b5, b6, b7, b8, b8A, b11, b12, b2path, b3path, b4path, b5path, b6path, b7path, b8path, b8Apath, b11path, b12path
+    del b3raster, b4raster, b5raster, b6raster, b7raster, b8raster, b8Araster, b11raster, b12raster
+    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader
 
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
     
@@ -97,15 +101,15 @@ def main():
     #"-----------------------------NDSI----------------------------------------"
     NDSI = numpy.divide((green - swir1), (green + swir1), out = numpy.zeros_like(green - swir1), where = (green + swir1) != 0)
 
-    #TCwet blue, green, red, nir4, swir1, swir2
+    #TCwet blue, green, red, nir1, swir1, swir2
     #"-----------------------------TCwet---------------------------------------"
     TCwet = numpy.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir1 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32") 
 
-    #AWEIsh blue, green, nir, swir1, swir2
+    #AWEIsh blue, green, nir1, swir1, swir2
     #"-----------------------------AWEIsh--------------------------------------"
     AWEIsh = numpy.array(blue + 2.5 * green - 1.5 * (nir1 + swir1) - 0.25 * swir2, dtype = "float32")
 
-    #Aweinsh  green, nir4, swir1, swir2
+    #Aweinsh  green, nir1, swir1, swir2
     #"-----------------------------AWEInsh-------------------------------------"
     AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
 
@@ -125,6 +129,8 @@ def main():
     transform_source = b2raster.transform
     reference_system_source = b2raster.crs
     print(rows_source, cols_source, transform_source, reference_system_source) 
+
+
 
 #-----SAR-----
 # Nahrani SAR snimku
