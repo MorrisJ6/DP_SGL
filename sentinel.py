@@ -1,9 +1,9 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, osgeo.gdal
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, osgeo.gdal, fiona, pandas
 #import sys
 
 def main():
     print("Inicializuji")
-    starttime = time.perf_counter()
+    #starttime = time.perf_counter()
 #-----Opticka data-----
     imagedir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
@@ -89,10 +89,17 @@ def main():
     # Smazani nepotrebnych promennych
     del b2, b3, b4, b5, b6, b7, b8, b8A, b11, b12, b2path, b3path, b4path, b5path, b6path, b7path, b8path, b8Apath, b11path, b12path
     del b3raster, b4raster, b5raster, b6raster, b7raster, b8raster, b8Araster, b11raster, b12raster
-    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader, f, imagedir, imagedir, directR10m, 
+    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader, f, imagedir, directR10m, 
     del directR20m, dirr10m, dirr20m
 
+    #print(b2raster.crs)
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
+
+    # Parametry pro tvorbu vystupniho rastru
+    rows_source = b2raster.height
+    cols_source = b2raster.width
+    transform_source = b2raster.transform
+    reference_system_source = b2raster.crs
     
     #NDWIice blue, red
     #"--------------------------NDWIice----------------------------------------"
@@ -114,22 +121,27 @@ def main():
     #"-----------------------------AWEInsh-------------------------------------"
     AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
 
-    #print(numpy.size(blue))
-    #print(numpy.size(swir1))
-    #print(numpy.size(NDSI))
-    #print(numpy.size(AWEInsh))
+    starttime = time.perf_counter()
+    train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
+    data = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
+    land_cover = train_samples["typ"]
 
-    #stack = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh), axis = 0)
-    #print(stack)
+    stack_data = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
+    stack = numpy.reshape(stack_data, [rows_source*cols_source, 15])
+    #data_stack = pandas.DataFrame(stack, dtype= "float32")
 
-    #classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 15)
+    classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 100)
+    classifier.fit(data, land_cover)
+    prediction = classifier.predict(stack)
+    classf = prediction.reshape(b2raster.height, b2raster.width)
+    print("Hotovo")
+    
+    stoptime = time.perf_counter()
+    print("Doba trvani v sekundach: ", stoptime - starttime)
 
-# Parametry pro tvorbu vystupniho rastru
-    rows_source = b2raster.height
-    cols_source = b2raster.width
-    transform_source = b2raster.transform
-    reference_system_source = b2raster.crs
-    print(rows_source, cols_source, transform_source, reference_system_source) 
+
+
+    #print(rows_source, cols_source, transform_source, reference_system_source) 
 
 
 
@@ -148,12 +160,33 @@ def main():
                 hv = r
                 hvpath = str(sarreader + hv) # cesta ke snimku HV polarizaci
                 hvraster = rasterio.open(hvpath, driver = "GTiff") # cteni snimku s HV polarizaci
+                    
+            else:
+                continue
     else:
         print("Slozka obsahujici SAR snimky neexistuje!")
         return
+
+    print(hhraster.shape)
+    print(hhraster.crs)
+    #hr = hhraster.read().astype("float32")
+    #print(hr)
+
     
-    stoptime = time.perf_counter()
-    print("Doba trvani v sekundach: ", stoptime - starttime)
+    #stoptime = time.perf_counter()
+    #print("Doba trvani v sekundach: ", stoptime - starttime)
 
 if __name__ == "__main__":
     main()
+
+    
+    
+    
+    
+    #with fiona.open("C:/Users/START/Desktop/!!!Data", "r") as shp :
+    #    clip = [feature["geometry"] for feature in shp]
+    #print(clip)
+    #print(numpy.size(blue))
+    #print(numpy.size(swir1))
+    #print(numpy.size(NDSI))
+    #print(numpy.size(AWEInsh))
