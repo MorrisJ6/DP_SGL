@@ -122,6 +122,7 @@ def main():
     #"-----------------------------AWEInsh-------------------------------------"
     AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
 
+    #"---------------------------Trenovaci data--------------------------------"
     starttime = time.perf_counter()
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
@@ -129,26 +130,40 @@ def main():
 
     stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
     stack = numpy.reshape(stack_pre, [rows_source * cols_source, 15])
-    print(stack.shape)
 
+    #"------------Presnost predpovedi dat na zaklade trenovacich dat------------"
     classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 100)
     X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.25)
     classifier.fit(X_train, y_train)
     pred_test = classifier.predict(X_test)
     accurancy = sklearn.metrics.accuracy_score(y_test, pred_test)
     print("Presnost: " + str(accurancy))
-    print("------------Klasifikace------------")
 
+    #"-------------------------Klasifikace snimku-------------------------------"
     classifier.fit(X, y)
     print("fit")
     prediction = classifier.predict(stack)
     print("predict")
     class_image = prediction.reshape(b2raster.height, b2raster.width)
     print("Hotovo")
-    
+
+    #vytvorit vrstvu pro vizualizaci class image GDAL, rasterio
+    #"-----------------------Tvorba noveho rastru-------------------------------"
+    new_raster = rasterio.open("C:/Users/START/Desktop/!!!Data/class_image.tif", "w", 
+        driver = "GTiff", 
+        height = rows_source, 
+        width = cols_source, 
+        count = 1, 
+        nodata = -1, 
+        dtype = "float32", 
+        crs = reference_system_source,
+        transform = transform_source)
+
+    with rasterio.open(new_raster, "w") as w:
+        w.write(class_image)
+
     stoptime = time.perf_counter()
     print("Doba trvani v sekundach: ", stoptime - starttime)
-
 
 #-----SAR-----
 # Nahrani SAR snimku
@@ -184,10 +199,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-    
-    
-    
-    
     #with fiona.open("C:/Users/START/Desktop/!!!Data", "r") as shp :
     #    clip = [feature["geometry"] for feature in shp]
     #print(clip)
