@@ -1,4 +1,4 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, osgeo.gdal, fiona, pandas
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.model_selection, sklearn.metrics, osgeo.gdal, fiona, pandas
 #import sys
 
 def main():
@@ -100,6 +100,7 @@ def main():
     cols_source = b2raster.width
     transform_source = b2raster.transform
     reference_system_source = b2raster.crs
+    #print(rows_source, cols_source, transform_source, reference_system_source) 
     
     #NDWIice blue, red
     #"--------------------------NDWIice----------------------------------------"
@@ -123,26 +124,30 @@ def main():
 
     starttime = time.perf_counter()
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
-    data = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
-    land_cover = train_samples["typ"]
+    X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
+    y = train_samples["typ"]
 
-    stack_data = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
-    stack = numpy.reshape(stack_data, [rows_source*cols_source, 15])
-    #data_stack = pandas.DataFrame(stack, dtype= "float32")
+    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
+    stack = numpy.reshape(stack_pre, [rows_source * cols_source, 15])
+    print(stack.shape)
 
     classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 100)
-    classifier.fit(data, land_cover)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.25)
+    classifier.fit(X_train, y_train)
+    pred_test = classifier.predict(X_test)
+    accurancy = sklearn.metrics.accuracy_score(y_test, pred_test)
+    print("Presnost: " + str(accurancy))
+    print("------------Klasifikace------------")
+
+    classifier.fit(X, y)
+    print("fit")
     prediction = classifier.predict(stack)
-    classf = prediction.reshape(b2raster.height, b2raster.width)
+    print("predict")
+    class_image = prediction.reshape(b2raster.height, b2raster.width)
     print("Hotovo")
     
     stoptime = time.perf_counter()
     print("Doba trvani v sekundach: ", stoptime - starttime)
-
-
-
-    #print(rows_source, cols_source, transform_source, reference_system_source) 
-
 
 
 #-----SAR-----
@@ -167,8 +172,8 @@ def main():
         print("Slozka obsahujici SAR snimky neexistuje!")
         return
 
-    print(hhraster.shape)
-    print(hhraster.crs)
+    #print(hhraster.shape)
+    #print(hhraster.crs)
     #hr = hhraster.read().astype("float32")
     #print(hr)
 
