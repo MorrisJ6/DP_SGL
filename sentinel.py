@@ -1,4 +1,5 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.model_selection, sklearn.metrics, osgeo.gdal, fiona, pandas
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.model_selection, sklearn.metrics, pandas
+from osgeo import gdal
 #import sys
 
 def main():
@@ -9,6 +10,8 @@ def main():
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
     dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
     #dirr60m = str(imagedir + "/R60m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
+    #writing_dir = "C:/Users/START/Desktop/!!!Data"
+    #sentinel_file = writing_dir + "sentinel_bands.tif"
     
 # Nahrani optickych snimku
     f = os.path.exists(dirr10m)
@@ -87,9 +90,9 @@ def main():
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
     
     # Smazani nepotrebnych promennych
-    del b2, b3, b4, b5, b6, b7, b8, b8A, b11, b12, b2path, b3path, b4path, b5path, b6path, b7path, b8path, b8Apath, b11path, b12path
+    del b2, b3, b4, b5, b6, b7, b8, b8A, b11, b12, b3path, b4path, b5path, b6path, b7path, b8path, b8Apath, b11path, b12path
     del b3raster, b4raster, b5raster, b6raster, b7raster, b8raster, b8Araster, b11raster, b12raster
-    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader, f, imagedir, directR10m, 
+    del rededge1reader, rededge2reader, rededge3reader, nir2reader, swir1reader, swir2reader, f, r, imagedir, directR10m, 
     del directR20m, dirr10m, dirr20m
 
     #print(b2raster.crs)
@@ -98,8 +101,11 @@ def main():
     # Parametry pro tvorbu vystupniho rastru
     rows_source = b2raster.height
     cols_source = b2raster.width
-    transform_source = b2raster.transform
-    reference_system_source = b2raster.crs
+    print(rows_source, cols_source)
+    b2raster_source = gdal.Open(b2path, gdal.GA_ReadOnly)
+    transform_source = b2raster_source.GetGeoTransform()
+    reference_system_source = b2raster_source.GetProjectionRef()
+
     #print(rows_source, cols_source, transform_source, reference_system_source) 
     
     #NDWIice blue, red
@@ -124,48 +130,87 @@ def main():
 
     #"---------------------------Trenovaci data--------------------------------"
     starttime = time.perf_counter()
+    
+
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
-    X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
+    X = train_samples[["blue","green","red"]] #,"rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
     y = train_samples["typ"]
 
-    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
-    stack = numpy.reshape(stack_pre, [rows_source * cols_source, 15])
+    stack_pre = numpy.stack((blue, green, red), axis = 0) #rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
+    stack = numpy.reshape(stack_pre, [cols_source * rows_source, 3]) #15
+    print(stack.shape)
 
     #"------------Presnost predpovedi dat na zaklade trenovacich dat------------"
-    classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 100)
+    classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 50, oob_score= True)
+    classifier.fit(X, y)
+    
+    bands = ["blue","green","red"] #,"rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
+
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt"):
+        os.remove("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt")
+    
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/class_image.tif"):
+        os.remove("C:/Users/START/Desktop/!!!Data/class_image.tif")
+
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv"):
+        os.remove("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv")
+    
+    data_frame = pandas.DataFrame()
+    data_frame["ROI"] = y
+    data_frame["Prediction"] = classifier.predict(X)
+    print(pandas.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True))
+    #with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
+    #    f.write(pandas.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True)+"\n")
+
+    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
+        print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
+        f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100))
+        for band, importance in zip(bands, classifier.feature_importances_):
+            print("Dulezitost pasma {} pro klasifikator je: {} %".format(band, importance * 100))
+            f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
+
+
     X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.25)
     classifier.fit(X_train, y_train)
     pred_test = classifier.predict(X_test)
     accurancy = sklearn.metrics.accuracy_score(y_test, pred_test)
-    print("Presnost: " + str(accurancy))
+    print("Presnost: {} %".format(accurancy * 100))
+    
+    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
+        f.write("Presnost: {} %\n".format(accurancy * 100))
 
     #"-------------------------Klasifikace snimku-------------------------------"
     classifier.fit(X, y)
     print("fit")
     prediction = classifier.predict(stack)
-    print("predict")
-    class_image = prediction.reshape(b2raster.height, b2raster.width)
-    print("Hotovo")
+    print(prediction.shape)
+    print("predicted")
+    
+    lst = []
+    for pixel in prediction:
+        lst.append(pixel)
+    arr = numpy.array(lst)
+    #print(numpy.amax(arr))
+    
+    class_image = numpy.reshape(arr, (b2raster.height, b2raster.width))
+    print(class_image.shape)
 
-    #vytvorit vrstvu pro vizualizaci class image GDAL, rasterio
-    #"-----------------------Tvorba noveho rastru-------------------------------"
-    new_raster = rasterio.open("C:/Users/START/Desktop/!!!Data/class_image.tif", "w", 
-        driver = "GTiff", 
-        height = rows_source, 
-        width = cols_source, 
-        count = 1, 
-        nodata = -1, 
-        dtype = "float32", 
-        crs = reference_system_source,
-        transform = transform_source)
-
-    with rasterio.open(new_raster, "w") as w:
-        w.write(class_image)
+    driver = gdal.GetDriverByName('GTiff')
+    rows = class_image.shape[0]
+    cols = class_image.shape[1]
+    raster_out = driver.Create("C:/Users/START/Desktop/!!!Data/class_image.tif", cols, rows, 1, gdal.GDT_Int32)
+    raster_out.SetGeoTransform(transform_source)
+    raster_out.SetProjection(reference_system_source)
+    band = raster_out.GetRasterBand(1)
+    band.WriteArray(class_image)
+    
+    #with rasterio.open(new_raster, "w", driver = "GTiff", height = rows_source, width = cols_source, count = 1, crs = reference_system_source, transform = transform_source, dtype = "float32") as w:
+    #    w.write(class_image)
 
     stoptime = time.perf_counter()
-    print("Doba trvani v sekundach: ", stoptime - starttime)
+    print("Doba trvani v minutach: ", (stoptime - starttime) / 60)
 
-#-----SAR-----
+#-----SAR-----  
 # Nahrani SAR snimku
     sarreader = "C:/Users/START/Desktop/!!!Data/S1A_IW_GRDH_1SDH_20210802T095223_20210802T095248_039049_049B89_FFDF.SAFE/measurement/"
     f = os.path.exists(sarreader)
@@ -187,6 +232,7 @@ def main():
         print("Slozka obsahujici SAR snimky neexistuje!")
         return
 
+    return 0 
     #print(hhraster.shape)
     #print(hhraster.crs)
     #hr = hhraster.read().astype("float32")
