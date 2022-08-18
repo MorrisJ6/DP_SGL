@@ -4,7 +4,16 @@ from osgeo import gdal
 
 def main():
     print("Inicializuji")
-    #starttime = time.perf_counter()
+
+#-----Smazani souboru z predchoziho spusteni-----
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt"):
+        os.remove("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt")
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/class_image.tif"):
+        os.remove("C:/Users/START/Desktop/!!!Data/class_image.tif")
+    if os.path.exists("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv"):
+        os.remove("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv")
+    
+    starttime = time.perf_counter()
 #-----Opticka data-----
     imagedir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
@@ -96,6 +105,7 @@ def main():
     del directR20m, dirr10m, dirr20m
 
     #print(b2raster.crs)
+    
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
 
     # Parametry pro tvorbu vystupniho rastru
@@ -133,28 +143,19 @@ def main():
     
 
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
-    X = train_samples[["blue","green","red"]] #,"rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
+    X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
     y = train_samples["typ"]
 
-    stack_pre = numpy.stack((blue, green, red), axis = 0) #rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
-    stack = numpy.reshape(stack_pre, [cols_source * rows_source, 3]) #15
+    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
+    stack = numpy.reshape(stack_pre, [cols_source * rows_source, 15])
     print(stack.shape)
 
     #"------------Presnost predpovedi dat na zaklade trenovacich dat------------"
     classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 50, oob_score= True)
-    classifier.fit(X, y)
+    classifier.fit(X.values, y.values)
     
-    bands = ["blue","green","red"] #,"rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
+    bands = ["blue","green","red", "rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
 
-    if os.path.exists("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt"):
-        os.remove("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt")
-    
-    if os.path.exists("C:/Users/START/Desktop/!!!Data/class_image.tif"):
-        os.remove("C:/Users/START/Desktop/!!!Data/class_image.tif")
-
-    if os.path.exists("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv"):
-        os.remove("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv")
-    
     data_frame = pandas.DataFrame()
     data_frame["ROI"] = y
     data_frame["Prediction"] = classifier.predict(X)
@@ -170,7 +171,7 @@ def main():
             f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
 
 
-    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.25)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X.values, y.values, test_size = 0.25)
     classifier.fit(X_train, y_train)
     pred_test = classifier.predict(X_test)
     accurancy = sklearn.metrics.accuracy_score(y_test, pred_test)
@@ -180,7 +181,7 @@ def main():
         f.write("Presnost: {} %\n".format(accurancy * 100))
 
     #"-------------------------Klasifikace snimku-------------------------------"
-    classifier.fit(X, y)
+    classifier.fit(X.values, y.values)
     print("fit")
     prediction = classifier.predict(stack)
     print(prediction.shape)
