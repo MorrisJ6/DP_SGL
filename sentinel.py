@@ -2,6 +2,10 @@ import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.model
 from osgeo import gdal
 #import sys
 
+# ValueError: X has 120560400 features, but RandomForestClassifier is expecting 15 features as input.
+
+
+
 def main():
     print("Inicializuji")
 
@@ -105,7 +109,7 @@ def main():
     del directR20m, dirr10m, dirr20m
 
     #print(b2raster.crs)
-    
+
 # Vypocet indexu TCwet, AWEIsh/nsh, NDWIice, NDSI
 
     # Parametry pro tvorbu vystupniho rastru
@@ -139,15 +143,15 @@ def main():
     AWEInsh = numpy.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
 
     #"---------------------------Trenovaci data--------------------------------"
-    starttime = time.perf_counter()
     
 
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
     y = train_samples["typ"]
 
-    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
-    stack = numpy.reshape(stack_pre, [cols_source * rows_source, 15])
+    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 2)
+    stack_np = numpy.reshape(stack_pre, [cols_source * rows_source, 15])
+    stack = pandas.DataFrame(stack_np, dtype = "float32")
     print(stack.shape)
 
     #"------------Presnost predpovedi dat na zaklade trenovacich dat------------"
@@ -187,13 +191,13 @@ def main():
     print(prediction.shape)
     print("predicted")
     
-    lst = []
-    for pixel in prediction:
-        lst.append(pixel)
-    arr = numpy.array(lst)
+    #lst = []
+    #for pixel in prediction:
+    #    lst.append(pixel)
+    #arr = numpy.array(lst)
     #print(numpy.amax(arr))
     
-    class_image = numpy.reshape(arr, (b2raster.height, b2raster.width))
+    class_image = numpy.reshape(prediction, (b2raster.height, b2raster.width))
     print(class_image.shape)
 
     driver = gdal.GetDriverByName('GTiff')
