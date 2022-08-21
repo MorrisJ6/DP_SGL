@@ -1,15 +1,13 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.model_selection, sklearn.metrics, pandas
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.tree, sklearn.neural_network, sklearn.model_selection, sklearn.metrics, pandas
 from osgeo import gdal
 #import sys
 
 # ValueError: X has 120560400 features, but RandomForestClassifier is expecting 15 features as input.
 
-
-
 def main():
     print("Inicializuji")
 
-#-----Smazani souboru z predchoziho spusteni-----
+#---------------Smazani souboru z predchoziho spusteni------------------
     if os.path.exists("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt"):
         os.remove("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt")
     if os.path.exists("C:/Users/START/Desktop/!!!Data/class_image.tif"):
@@ -18,7 +16,7 @@ def main():
         os.remove("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv")
     
     starttime = time.perf_counter()
-#-----Opticka data-----
+#----------------Opticka data-----------------------------------
     imagedir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
     dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
@@ -35,22 +33,26 @@ def main():
                 b2 = r
                 b2path = str(dirr10m + b2) # cesta ke snimku modreho pasma
                 b2raster = rasterio.open(b2path, driver = "JP2OpenJPEG") # cteni snimku modreho pasma
-                blue = b2raster.read().astype("float32")
+                blue_read = b2raster.read().astype("float32")
+                blue = numpy.array(blue_read)
             elif r.endswith("_B03_10m.jp2"):
                 b3 = r
                 b3path = str(dirr10m + b3) # cesta ke snimku zelenho pasma
                 b3raster = rasterio.open(b3path, driver = "JP2OpenJPEG") # cteni snimku zeleneho pasma
-                green = b3raster.read().astype("float32")
+                green_read = b3raster.read().astype("float32")
+                green = numpy.array(green_read)
             elif r.endswith("_B04_10m.jp2"):
                 b4 = r
                 b4path = str(dirr10m + b4) # cesta ke snimku cerveneho pasma
                 b4raster = rasterio.open(b4path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
-                red = b4raster.read().astype("float32")
+                red_read = b4raster.read().astype("float32")
+                red = numpy.array(red_read)
             elif r.endswith("_B08_10m.jp2"):
                 b8 = r
                 b8path = str(dirr10m + b8) # cesta ke snimku blizkeho infracerveneho pasma
                 b8raster = rasterio.open(b8path, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
-                nir1 = b8raster.read().astype("float32")
+                nir1_read = b8raster.read().astype("float32")
+                nir1 = numpy.array(nir1_read)
             else:
                 continue
     else: 
@@ -66,37 +68,43 @@ def main():
                 b5path = str(dirr20m + b5) # cesta ke snimku modreho pasma
                 b5raster = rasterio.open(b5path, driver = "JP2OpenJPEG") # cteni snimku modreho pasma
                 rededge1reader = b5raster.read().astype("float32")
-                rededge1 = scipy.ndimage.zoom(rededge1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge1_zoom = scipy.ndimage.zoom(rededge1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge1 = numpy.array(rededge1_zoom)
             elif r.endswith("_B06_20m.jp2"):
                 b6 = r
                 b6path = str(dirr20m + b6) # cesta ke snimku zelenho pasma
                 b6raster = rasterio.open(b6path, driver = "JP2OpenJPEG") # cteni snimku zeleneho pasma
                 rededge2reader = b6raster.read().astype("float32")
-                rededge2 = scipy.ndimage.zoom(rededge2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge2_zoom = scipy.ndimage.zoom(rededge2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge2 = numpy.array(rededge2_zoom)
             elif r.endswith("_B07_20m.jp2"):
                 b7 = r
                 b7path = str(dirr20m + b7) # cesta ke snimku cerveneho pasma
                 b7raster = rasterio.open(b7path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
                 rededge3reader = b7raster.read().astype("float32")
-                rededge3 = scipy.ndimage.zoom(rededge3reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge3_zoom = scipy.ndimage.zoom(rededge3reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                rededge3 = numpy.array(rededge3_zoom)
             elif r.endswith("_B8A_20m.jp2"):
                 b8A = r
                 b8Apath = str(dirr20m + b8A) # cesta ke snimku blizkeho infracerveneho pasma
                 b8Araster = rasterio.open(b8Apath, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
                 nir2reader = b8Araster.read().astype("float32")
-                nir2 = scipy.ndimage.zoom(nir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                nir2_zoom = scipy.ndimage.zoom(nir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                nir2 = numpy.array(nir2_zoom)
             elif r.endswith("_B11_20m.jp2"):
                 b11 = r
                 b11path = str(dirr20m + b11) # cesta ke snimku cerveneho pasma
                 b11raster = rasterio.open(b11path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
                 swir1reader = b11raster.read().astype("float32")
-                swir1 = scipy.ndimage.zoom(swir1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                swir1_zoom = scipy.ndimage.zoom(swir1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                swir1 = numpy.array(swir1_zoom)
             elif r.endswith("_B12_20m.jp2"):
                 b12 = r
                 b12path = str(dirr20m + b12) # cesta ke snimku blizkeho infracerveneho pasma
                 b12raster = rasterio.open(b12path, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
                 swir2reader = b12raster.read().astype("float32")
-                swir2 = scipy.ndimage.zoom(swir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                swir2_zoom = scipy.ndimage.zoom(swir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
+                swir2 = numpy.array(swir2_zoom)
             else:
                 continue
     else:
@@ -115,7 +123,7 @@ def main():
     # Parametry pro tvorbu vystupniho rastru
     rows_source = b2raster.height
     cols_source = b2raster.width
-    print(rows_source, cols_source)
+    #print(rows_source, cols_source)
     b2raster_source = gdal.Open(b2path, gdal.GA_ReadOnly)
     transform_source = b2raster_source.GetGeoTransform()
     reference_system_source = b2raster_source.GetProjectionRef()
@@ -147,29 +155,38 @@ def main():
 
     train_samples = pandas.read_csv("C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv", sep = ";")
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]]
+    #print(X)
     y = train_samples["typ"]
+    #print(y)
 
-    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 2)
+    stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
     stack_np = numpy.reshape(stack_pre, [cols_source * rows_source, 15])
+    #print(stack_np[0])
     stack = pandas.DataFrame(stack_np, dtype = "float32")
-    print(stack.shape)
+    #print(stack.shape)
 
     #"------------Presnost predpovedi dat na zaklade trenovacich dat------------"
-    classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 50, oob_score= True)
-    classifier.fit(X.values, y.values)
+    classifier = sklearn.ensemble.RandomForestClassifier(n_estimators = 50, oob_score= True) 
+    #classifier = sklearn.tree.DecisionTreeClassifier() 
+    #classifier = sklearn.neural_network.MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(5, 2), random_state=1)
+    
+    classifier.fit(X, y.values)
     
     bands = ["blue","green","red", "rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
 
-    data_frame = pandas.DataFrame()
+    data_frame = pandas.DataFrame(dtype = "float32")
     data_frame["ROI"] = y
     data_frame["Prediction"] = classifier.predict(X)
+    print("---------------------------CROSS TABULKA-----------------------------")
     print(pandas.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True))
     #with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
     #    f.write(pandas.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True)+"\n")
+    print("----------------------------OOB---------------------------------------")
 
     with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
         print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
         f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100))
+        print("-------------------------Dulezitost pasem-------------------------------")
         for band, importance in zip(bands, classifier.feature_importances_):
             print("Dulezitost pasma {} pro klasifikator je: {} %".format(band, importance * 100))
             f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
