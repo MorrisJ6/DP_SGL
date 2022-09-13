@@ -1,11 +1,15 @@
-import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.tree, sklearn.neural_network, sklearn.model_selection, sklearn.metrics, pandas
+import rasterio, numpy, os, scipy.ndimage, time, sklearn.ensemble, sklearn.tree, sklearn.neural_network, sklearn.model_selection, sklearn.metrics, pandas, datetime
+import matplotlib
+from matplotlib import pyplot
 from osgeo import gdal
 #import sys
 
 # ValueError: X has 120560400 features, but RandomForestClassifier is expecting 15 features as input.
 
 def main():
+    starttime = time.perf_counter()
     print("Inicializuji")
+    print(datetime.datetime.now())
 
 #---------------Smazani souboru z predchoziho spusteni------------------
     if os.path.exists("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt"):
@@ -15,7 +19,6 @@ def main():
     if os.path.exists("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv"):
         os.remove("C:/Users/START/Desktop/!!!Data/confusion_matrix.csv")
     
-    starttime = time.perf_counter()
 #----------------Opticka data-----------------------------------
     imagedir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # cesta ke slozce
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
@@ -126,7 +129,10 @@ def main():
     #print(rows_source, cols_source)
     b2raster_source = gdal.Open(b2path, gdal.GA_ReadOnly)
     transform_source = b2raster_source.GetGeoTransform()
+    #print(transform_source)
     reference_system_source = b2raster_source.GetProjectionRef()
+    #print(reference_system_source)
+
 
     #print(rows_source, cols_source, transform_source, reference_system_source) 
     
@@ -160,7 +166,9 @@ def main():
     #print(y)
 
     stack_pre = numpy.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0)
+    #print(stack_pre[3,(1000,1000)])
     stack_np = numpy.reshape(stack_pre, [cols_source * rows_source, 15])
+    #print(stack_np[3,10000000])
     #print(stack_np[0])
     stack = pandas.DataFrame(stack_np, dtype = "float32")
     #print(stack.shape)
@@ -192,21 +200,23 @@ def main():
             f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
 
 
+    print("-------------------------Presnost--------------------------------")
     X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X.values, y.values, test_size = 0.25)
     classifier.fit(X_train, y_train)
     pred_test = classifier.predict(X_test)
     accurancy = sklearn.metrics.accuracy_score(y_test, pred_test)
     print("Presnost: {} %".format(accurancy * 100))
+    kappa = sklearn.metrics.cohen_kappa_score(y_test, pred_test)
+    print("Kappa koeficient: {}".format(kappa * 100))
     
     with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
         f.write("Presnost: {} %\n".format(accurancy * 100))
+        f.write("Kappa koeficient: {}".format(kappa * 100))
 
     #"-------------------------Klasifikace snimku-------------------------------"
     classifier.fit(X.values, y.values)
-    print("fit")
     prediction = classifier.predict(stack)
     print(prediction.shape)
-    print("predicted")
     
     #lst = []
     #for pixel in prediction:
@@ -225,12 +235,55 @@ def main():
     raster_out.SetProjection(reference_system_source)
     band = raster_out.GetRasterBand(1)
     band.WriteArray(class_image)
+
     
-    #with rasterio.open(new_raster, "w", driver = "GTiff", height = rows_source, width = cols_source, count = 1, crs = reference_system_source, transform = transform_source, dtype = "float32") as w:
-    #    w.write(class_image)
+    #"-----------------------Vizualizace-----------------------------------"
+    classes = {
+        1 : ("Vodni plocha", "#070447"),
+        2 : ("Snih", "#e4e4ed"),
+        3 : ("Led", "#3c4d52"),
+        4 : ("Bare rock", "#361e0a")
+    }
+
+    classes_colors = []
+    classes_labels = []
+
+    for key in classes:
+        values = classes.get(key)
+        label = values[0]
+        color = values[1]
+
+        classes_labels.append(label)
+        classes_colors.append(color)
+
+    fig = pyplot.figure(figsize=(18,12))
+    cmap = pyplot.matplotlib.colors.ListedColormap(classes_colors, N = 4) #colormap
+    ax = fig.add_subplot(121) 
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.imshow(class_image,cmap=cmap)
+    ax.title.set_text("Klasifikace")
+    pyplot.show()
 
     stoptime = time.perf_counter()
     print("Doba trvani v minutach: ", (stoptime - starttime) / 60)
+    return
+
+    #with rasterio.open("C:/Users/START/Desktop/!!!Data/class_imagetttt.tif",
+    #                mode = "w",
+    #                driver = "GTiff",
+    #                height = np_array.shape[1],
+    #                width = np_array.shape[2],
+    #                count = 1,
+    #                dtype = np_array.dtype
+    #                ) as dataset:
+    #                dataset.write(np_array)
+
+
+
+    #with rasterio.open(new_raster, "w", driver = "GTiff", height = rows_source, width = cols_source, count = 1, crs = reference_system_source, transform = transform_source, dtype = "float32") as w:
+    #    w.write(class_image)
+
 
 #-----SAR-----  
 # Nahrani SAR snimku
