@@ -1,14 +1,28 @@
 import rasterio as rio, numpy as np, os, scipy.ndimage, time
 
 def main():
+
+    """
+    Hlavni funkce programu. Nacte cestu k souborum s daty Sentinel-2, spusti casovac a funkci nacteni_dat_sentinel_2.
+    """
+
     starttime = time.perf_counter()
     image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA"
     nacteni_dat_sentinel_2(image_dir)
     stoptime = time.perf_counter()
-    print("Doba behu v minutach: ", str((stoptime - starttime) / 60))
+    doba_behu = format(((stoptime - starttime) / 60), '.2f')
+    print("Doba behu programu byla: {} minut".format(doba_behu))
+    print("Program probehl uspesne.")
+    exit(0)
 
-def nacteni_dat_sentinel_2(vstupni_slozka):
-    imagedir = vstupni_slozka
+def nacteni_dat_sentinel_2(imagedir):
+
+    """
+    Vstupem je slozka obsahujici vstupni rastry Sentinel-2.
+    Vystupem jsou nactene rastry prevedene do numpy matic, ktere vstupuji do zavolene funkce vypoctu indexu. 
+    """ 
+
+    imagedir = imagedir
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
     dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
 
@@ -44,7 +58,7 @@ def nacteni_dat_sentinel_2(vstupni_slozka):
                 continue
     else: 
         print("Slozka obsahujici rastry s rozlisenim 10m neexistuje!")
-        return
+        exit(1)
 
     f = os.path.exists(dirr20m)
     if f == True:     
@@ -96,22 +110,29 @@ def nacteni_dat_sentinel_2(vstupni_slozka):
                 continue
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
-        return
+        exit(1)
 
     vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2)
     return
 
 def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2):
+
+    """
+    Vstupem jsou numpy matice z predchozi funkce.
+    Vystupem jsou predchozi matice doplnene nove vypocitanymi indexy opet ve forme matic.
+    """
+
     NDWIice = np.divide((blue - red), (blue + red), out = np.zeros_like(blue - red), where = (blue + red) != 0)
     NDSI = np.divide((green - swir1), (green + swir1), out = np.zeros_like(green - swir1), where = (green + swir1) != 0)
     TCwet = np.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir1 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32")
     AWEIsh = np.array(blue + 2.5 * green - 1.5 * (nir1 + swir1) - 0.25 * swir2, dtype = "float32")
     AWEInsh = np.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32")
     
-    #print(blue.shape, green.shape, red.shape, nir1.shape, rededge1.shape, rededge2.shape, rededge3.shape, nir2.shape, swir1.shape, swir2.shape, NDWIice.shape, NDSI.shape, TCwet.shape, AWEIsh.shape, AWEInsh.shape)
     return blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, NDWIice, NDSI, TCwet, AWEIsh, AWEInsh
     
+
+
+
+
 if __name__ == "__main__": #Volani programu
     main()
-
-
