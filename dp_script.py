@@ -26,9 +26,11 @@ def main():
 def nacteni_dat(imagedir, train_samples_file):
 
     """
-    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Zaroven pripravi trenovaci data pro dalsi praci.
+    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Zaroven pripravi trenovaci data pro dalsi praci a informace
+    o rastru, ktery bude pozdeji vytvoren.
     Vstupem je slozka obsahujici vstupni rastry Sentinel-2 a csv soubor obsahujici trenovaci data.
-    Vystupem jsou nactene rastry prevedene do numpy matic, ktere vstupuji do zavolene funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data.  
+    Vystupem jsou nactene rastry prevedene do numpy matic, ktere vstupuji do zavolene funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data 
+    a udaje o rastru.  
     """ 
 
     dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
@@ -42,6 +44,10 @@ def nacteni_dat(imagedir, train_samples_file):
                 b2 = r
                 b2path = str(dirr10m + b2) # cesta ke snimku modreho pasma
                 b2raster = rio.open(b2path, driver = "JP2OpenJPEG") # cteni snimku modreho pasma
+                crs = b2raster.crs # souradnicovy system
+                transform = b2raster.transform # transformace
+                width = b2raster.width # pocet sloupcu
+                height = b2raster.height # pocet radku
                 blue_read = b2raster.read().astype("float32")
                 blue = np.array(blue_read)
             elif r.endswith("_B03_10m.jp2"):
@@ -125,22 +131,22 @@ def nacteni_dat(imagedir, train_samples_file):
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
     print(".")
-    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y) # Zavolani nasleduji funkce
+    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, width, height) # Zavolani nasleduji funkce
     return
 
-def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y):
+def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, width, height):
 
     """
     Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
-    o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a rozmery 
-    puvodnich matic dalsi funkci.
+    o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a informace
+    o puvodnich rastrech dalsi funkci.
     Vstupem jsou numpy matice z predchozi funkce a promenne vytvorene z trenovacich dat.
     Vystupem je 2D matice tvorena vstupnimi maticemi spolu s nove vypocitanymi maticemi indexu, ktera vstupuje do funkce DUMMY spolu 
-    s trenovacimi daty a rozmeru puvodnich maticjednotlivych pasem.
+    s trenovacimi daty a informace o puvodnich rastrech.
     """
 
-    rows = blue.shape[1]
-    cols = blue.shape[2]
+    rows = height
+    cols = width
     array_1D = rows * cols # Vypocet jedne dimenze vektoru, prevedeni 2D matice do 1D radku hodnot
     
     NDWIice = np.divide((blue - red), (blue + red), out = np.zeros_like(blue - red), where = (blue + red) != 0) # Vypocet NDWice
@@ -155,10 +161,10 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     matrix_reshape = matrix_original.reshape(array_1D, bands) # Transformace predchozi matice do 2D matice 
 
     print(".")
-    klasifikator(matrix_reshape, X, y, rows, cols) # Zavolani nasledujici funkce
+    klasifikator(matrix_reshape, X, y, rows, cols, crs, transform) # Zavolani nasledujici funkce
     return
 
-def klasifikator(matrix_reshape, X, y, rows, cols):
+def klasifikator(matrix_reshape, X, y, rows, cols, crs, transform):
 
     """
     Popis
@@ -166,7 +172,7 @@ def klasifikator(matrix_reshape, X, y, rows, cols):
     Vystup
     """
 
-    classifier = scikit.RandomForestClassifier(n_estimators = 50, oob_score = True) # Zavolani klasifikatoru
+    classifier = scikit.RandomForestClassifier(n_estimators = 50, oob_score= True) 
     classifier.fit(X, y.values) 
     
     bands = ["blue","green","red", "rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
@@ -198,10 +204,10 @@ def klasifikator(matrix_reshape, X, y, rows, cols):
     class_image = classifier.predict(matrix_reshape)
 
     print(".")
-    tvorba_rastru(class_image, rows, cols)
+    tvorba_rastru(class_image, rows, cols, crs, transform)
     return
 
-def tvorba_rastru(class_image, rows, cols):
+def tvorba_rastru(class_image, rows, cols, crs, transform):
 
     """
     Popis
@@ -210,6 +216,7 @@ def tvorba_rastru(class_image, rows, cols):
     """
 
     print(class_image.shape, rows, cols)
+    class_image_reshape = class_image.reshape(cols, rows)
 
     with rio.open("C:/Users/START/Desktop/!!!Data/class_image_test.tif",
                     mode = "w",
@@ -217,10 +224,11 @@ def tvorba_rastru(class_image, rows, cols):
                     height = rows,
                     width = cols,
                     count = 1,
-                    crs = "EPSG:32633",
-                    dtype = class_image.dtype
+                    dtype = "float32",
+                    crs = crs,
+                    transform = transform
                     ) as dataset:
-                    dataset.write(class_image, 1)
+                    dataset.write(class_image_reshape, 1)
     print(".")
     return
 
