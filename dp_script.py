@@ -1,9 +1,10 @@
-import rasterio as rio, numpy as np, os, scipy.ndimage as sp, time, pandas as pd
+import rasterio as rio, numpy as np, os, scipy.ndimage as sp, time, pandas as pd, sklearn.metrics as metrics, sklearn.ensemble as scikit
+import pandas as pd, sklearn.model_selection as model
 
 def main():
 
     """
-    Hlavni funkce programu. Nacte cestu k souborum s daty Sentinel-2, spusti casovac a funkci nacteni_dat.
+    Hlavni funkce programu. Nacte cestu k souborum s daty Sentinel-2, spusti casovac a zavola funkci nacteni_dat.
     """
 
     starttime = time.perf_counter() # Spusteni casovace
@@ -123,17 +124,19 @@ def nacteni_dat(imagedir, train_samples_file):
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]] # Sloupce obsahuji hodnoty pixelu trenovacich dat pro jednotlive pasma a indexy
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
-    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y) # Zavolani nasleduji funkce 
+    print(".")
+    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y) # Zavolani nasleduji funkce
     return
 
 def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y):
 
     """
     Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
-    o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data dalsi funkci.
+    o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a rozmery 
+    puvodnich matic dalsi funkci.
     Vstupem jsou numpy matice z predchozi funkce a promenne vytvorene z trenovacich dat.
     Vystupem je 2D matice tvorena vstupnimi maticemi spolu s nove vypocitanymi maticemi indexu, ktera vstupuje do funkce DUMMY spolu 
-    s trenovacimi daty.
+    s trenovacimi daty a rozmeru puvodnich maticjednotlivych pasem.
     """
 
     rows = blue.shape[1]
@@ -149,13 +152,77 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     matrix_original = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
     bands = (matrix_original.shape[0])
 
-    matrix_reshape = matrix_original.reshape(bands, array_1D) # Transformace predchozi matice do 2D matice 
+    matrix_reshape = matrix_original.reshape(array_1D, bands) # Transformace predchozi matice do 2D matice 
 
-    dummy(matrix_reshape, X, y) # Zavolani nasledujici funkce
+    print(".")
+    klasifikator(matrix_reshape, X, y, rows, cols) # Zavolani nasledujici funkce
     return
 
-def dummy(matrix_reshape, X, y):
-    print("Dummy print")
+def klasifikator(matrix_reshape, X, y, rows, cols):
+
+    """
+    Popis
+    Vstup
+    Vystup
+    """
+
+    classifier = scikit.RandomForestClassifier(n_estimators = 50, oob_score = True) # Zavolani klasifikatoru
+    classifier.fit(X, y.values) 
+    
+    bands = ["blue","green","red", "rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
+
+    data_frame = pd.DataFrame(dtype = "float32")
+    data_frame["ROI"] = y
+    data_frame["Prediction"] = classifier.predict(X)
+    print(pd.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True))
+
+    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
+        print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
+        f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100))
+        for band, importance in zip(bands, classifier.feature_importances_):
+            print("Dulezitost pasma {} pro klasifikator je: {} %".format(band, importance * 100))
+            f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
+
+    X_train, X_test, y_train, y_test = model.train_test_split(X.values, y.values, test_size = 0.25)
+    classifier.fit(X_train, y_train)
+    pred_test = classifier.predict(X_test)
+    accurancy = metrics.accuracy_score(y_test, pred_test)
+    print("Presnost: {} %".format(accurancy * 100))
+    kappa = metrics.cohen_kappa_score(y_test, pred_test)
+    print("Kappa koeficient: {}".format(kappa * 100))
+    
+    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
+        f.write("Presnost: {} %\n".format(accurancy * 100))
+        f.write("Kappa koeficient: {}".format(kappa * 100))
+
+    class_image = classifier.predict(matrix_reshape)
+
+    print(".")
+    tvorba_rastru(class_image, rows, cols)
+    return
+
+def tvorba_rastru(class_image, rows, cols):
+
+    """
+    Popis
+    Vstup
+    Vystup
+    """
+
+    print(class_image.shape, rows, cols)
+
+    with rio.open("C:/Users/START/Desktop/!!!Data/class_image_test.tif",
+                    mode = "w",
+                    driver = "GTiff",
+                    height = rows,
+                    width = cols,
+                    count = 1,
+                    crs = "EPSG:32633",
+                    dtype = class_image.dtype
+                    ) as dataset:
+                    dataset.write(class_image, 1)
+    print(".")
+    return
 
 if __name__ == "__main__": 
     main() # Zavolani programu
