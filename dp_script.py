@@ -49,25 +49,29 @@ def nacteni_dat(imagedir, train_samples_file):
                 width = b2raster.width # pocet sloupcu
                 height = b2raster.height # pocet radku
                 blue_read = b2raster.read().astype("float32")
-                blue = np.array(blue_read)
+                blue_1D = blue_read.reshape(width * height)
+                blue = np.array(blue_1D)
             elif r.endswith("_B03_10m.jp2"):
                 b3 = r
                 b3path = str(dirr10m + b3) # cesta ke snimku zelenho pasma
                 b3raster = rio.open(b3path, driver = "JP2OpenJPEG") # cteni snimku zeleneho pasma
                 green_read = b3raster.read().astype("float32")
-                green = np.array(green_read)
+                green_1D = green_read.reshape(width * height)
+                green = np.array(green_1D)
             elif r.endswith("_B04_10m.jp2"):
                 b4 = r
                 b4path = str(dirr10m + b4) # cesta ke snimku cerveneho pasma
                 b4raster = rio.open(b4path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
                 red_read = b4raster.read().astype("float32")
-                red = np.array(red_read)
+                red_1D = red_read.reshape(width * height)
+                red = np.array(red_1D)
             elif r.endswith("_B08_10m.jp2"):
                 b8 = r
                 b8path = str(dirr10m + b8) # cesta ke snimku blizkeho infracerveneho pasma
                 b8raster = rio.open(b8path, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
                 nir1_read = b8raster.read().astype("float32")
-                nir1 = np.array(nir1_read)
+                nir1_1D = nir1_read.reshape(width * height)
+                nir1 = np.array(nir1_1D)
             else:
                 continue
     else: 
@@ -84,42 +88,48 @@ def nacteni_dat(imagedir, train_samples_file):
                 b5raster = rio.open(b5path, driver = "JP2OpenJPEG") # cteni snimku modreho pasma
                 rededge1reader = b5raster.read().astype("float32")
                 rededge1_zoom = sp.zoom(rededge1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                rededge1 = np.array(rededge1_zoom)
+                rededge1_1D = rededge1_zoom.reshape(width * height)
+                rededge1 = np.array(rededge1_1D)
             elif r.endswith("_B06_20m.jp2"):
                 b6 = r
                 b6path = str(dirr20m + b6) # cesta ke snimku zelenho pasma
                 b6raster = rio.open(b6path, driver = "JP2OpenJPEG") # cteni snimku zeleneho pasma
                 rededge2reader = b6raster.read().astype("float32")
                 rededge2_zoom = sp.zoom(rededge2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                rededge2 = np.array(rededge2_zoom)
+                rededge2_1D = rededge2_zoom.reshape(width * height)
+                rededge2 = np.array(rededge2_1D)
             elif r.endswith("_B07_20m.jp2"):
                 b7 = r
                 b7path = str(dirr20m + b7) # cesta ke snimku cerveneho pasma
                 b7raster = rio.open(b7path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
                 rededge3reader = b7raster.read().astype("float32")
                 rededge3_zoom = sp.zoom(rededge3reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                rededge3 = np.array(rededge3_zoom)
+                rededge3_1D = rededge3_zoom.reshape(width * height)
+                rededge3 = np.array(rededge3_1D)
             elif r.endswith("_B8A_20m.jp2"):
                 b8A = r
                 b8Apath = str(dirr20m + b8A) # cesta ke snimku blizkeho infracerveneho pasma
                 b8Araster = rio.open(b8Apath, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
                 nir2reader = b8Araster.read().astype("float32")
                 nir2_zoom = sp.zoom(nir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                nir2 = np.array(nir2_zoom)
+                nir2_1D = nir2_zoom.reshape(width * height)
+                nir2 = np.array(nir2_1D)
             elif r.endswith("_B11_20m.jp2"):
                 b11 = r
                 b11path = str(dirr20m + b11) # cesta ke snimku cerveneho pasma
                 b11raster = rio.open(b11path, driver = "JP2OpenJPEG") # cteni snimku cerveneho pasma
                 swir1reader = b11raster.read().astype("float32")
                 swir1_zoom = sp.zoom(swir1reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                swir1 = np.array(swir1_zoom)
+                swir1_1D = swir1_zoom.reshape(width * height)
+                swir1 = np.array(swir1_1D)
             elif r.endswith("_B12_20m.jp2"):
                 b12 = r
                 b12path = str(dirr20m + b12) # cesta ke snimku blizkeho infracerveneho pasma
                 b12raster = rio.open(b12path, driver = "JP2OpenJPEG") # cteni snimku blizkeho infracerveneho pasma
                 swir2reader = b12raster.read().astype("float32")
                 swir2_zoom = sp.zoom(swir2reader, (1,2,2), order=0) #zmena velikosti pixelu z 20m na 10m
-                swir2 = np.array(swir2_zoom)
+                swir2_1D = swir2_zoom.reshape(width * height)
+                swir2 = np.array(swir2_1D)
             else:
                 continue
     else:
@@ -130,7 +140,6 @@ def nacteni_dat(imagedir, train_samples_file):
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]] # Sloupce obsahuji hodnoty pixelu trenovacich dat pro jednotlive pasma a indexy
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
-    print(".")
     vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width) # Zavolani nasleduji funkce
     return
 
@@ -150,18 +159,17 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     TCwet = np.array(0.1509 * blue + 0.1973 * green + 0.3279 * red + 0.3406 * nir1 - 0.7112 * swir1 - 0.4572 * swir2, dtype = "float32") # Vypocet TCwet 
     AWEIsh = np.array(blue + 2.5 * green - 1.5 * (nir1 + swir1) - 0.25 * swir2, dtype = "float32") # Vypocet AWEIsh
     AWEInsh = np.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32") # Vypocet AWEInsh
-    
-    matrix_original = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
-    bands = (matrix_original.shape[0])
 
-    array_1D = width * height # Vypocet jedne dimenze vektoru, prevedeni 2D matice do 1D radku hodnot
-    matrix_reshape = matrix_original.reshape(array_1D, bands) # Transformace predchozi matice do 2D matice 
 
-    print(".")
-    klasifikator(matrix_reshape, X, y, height, width, crs, transform) # Zavolani nasledujici funkce
+    matrix_stack = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
+    print(matrix_stack.shape)
+    matrix = matrix_stack.reshape(matrix_stack.shape[1], matrix_stack.shape[0])
+    print(matrix.shape)
+    #tvorba_rastru(class_image, height, width, crs, transform)
+    klasifikator(matrix, X, y, height, width, crs, transform) # Zavolani nasledujici funkce
     return
 
-def klasifikator(matrix_reshape, X, y, height, width, crs, transform):
+def klasifikator(matrix, X, y, height, width, crs, transform):
 
     """
     Popis
@@ -198,9 +206,8 @@ def klasifikator(matrix_reshape, X, y, height, width, crs, transform):
         f.write("Presnost: {} %\n".format(accurancy * 100)) # Zapis hodnoty presnosti do textoveho souboru 
         f.write("Kappa koeficient: {}".format(kappa * 100)) # Zapis hodnoy Kappa koeficientu do textoveho souboru
 
-    class_image = classifier.predict(matrix_reshape) # Klasifikace matice obsahujici pasma a indexy
+    class_image = classifier.predict(matrix) # Klasifikace matice obsahujici pasma a indexy
 
-    print(".")
     tvorba_rastru(class_image, height, width, crs, transform)
     return
 
@@ -213,13 +220,6 @@ def tvorba_rastru(class_image, height, width, crs, transform):
     """
     print(class_image)
 
-    for pixel in class_image:
-        if class_image[pixel] == 1:
-            continue
-        else:
-            class_image[pixel] = 0
-    
-    print(class_image)
 
     class_image_reshape = class_image.reshape(width, height)
 
@@ -234,7 +234,6 @@ def tvorba_rastru(class_image, height, width, crs, transform):
                     transform = transform
                     ) as dataset:
                     dataset.write(class_image_reshape, 1)
-    print(".")
     return
 
 if __name__ == "__main__": 
