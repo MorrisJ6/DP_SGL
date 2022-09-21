@@ -131,23 +131,19 @@ def nacteni_dat(imagedir, train_samples_file):
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
     print(".")
-    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, width, height) # Zavolani nasleduji funkce
+    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width) # Zavolani nasleduji funkce
     return
 
-def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, width, height):
+def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width):
 
     """
     Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
     o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a informace
     o puvodnich rastrech dalsi funkci.
     Vstupem jsou numpy matice z predchozi funkce a promenne vytvorene z trenovacich dat.
-    Vystupem je 2D matice tvorena vstupnimi maticemi spolu s nove vypocitanymi maticemi indexu, ktera vstupuje do funkce DUMMY spolu 
+    Vystupem je 2D matice tvorena vstupnimi maticemi spolu s nove vypocitanymi maticemi indexu, ktera vstupuje do funkce tvorba_rastru spolu 
     s trenovacimi daty a informace o puvodnich rastrech.
     """
-
-    rows = height
-    cols = width
-    array_1D = rows * cols # Vypocet jedne dimenze vektoru, prevedeni 2D matice do 1D radku hodnot
     
     NDWIice = np.divide((blue - red), (blue + red), out = np.zeros_like(blue - red), where = (blue + red) != 0) # Vypocet NDWice
     NDSI = np.divide((green - swir1), (green + swir1), out = np.zeros_like(green - swir1), where = (green + swir1) != 0) # Vypocet NDSI
@@ -158,13 +154,14 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     matrix_original = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
     bands = (matrix_original.shape[0])
 
+    array_1D = width * height # Vypocet jedne dimenze vektoru, prevedeni 2D matice do 1D radku hodnot
     matrix_reshape = matrix_original.reshape(array_1D, bands) # Transformace predchozi matice do 2D matice 
 
     print(".")
-    klasifikator(matrix_reshape, X, y, rows, cols, crs, transform) # Zavolani nasledujici funkce
+    klasifikator(matrix_reshape, X, y, height, width, crs, transform) # Zavolani nasledujici funkce
     return
 
-def klasifikator(matrix_reshape, X, y, rows, cols, crs, transform):
+def klasifikator(matrix_reshape, X, y, height, width, crs, transform):
 
     """
     Popis
@@ -172,57 +169,65 @@ def klasifikator(matrix_reshape, X, y, rows, cols, crs, transform):
     Vystup
     """
 
-    classifier = scikit.RandomForestClassifier(n_estimators = 50, oob_score= True) 
-    classifier.fit(X, y.values) 
+    classifier = scikit.RandomForestClassifier(n_estimators = 50, oob_score= True) # Zavolani klasifikatoru
+    classifier.fit(X, y.values) # Fitting trenovacich dat
     
     bands = ["blue","green","red", "rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]
 
     data_frame = pd.DataFrame(dtype = "float32")
-    data_frame["ROI"] = y
-    data_frame["Prediction"] = classifier.predict(X)
-    print(pd.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True))
+    data_frame["ROI"] = y # 
+    data_frame["Prediction"] = classifier.predict(X) # 
+    print(pd.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True)) # Matice zamen
 
     with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
         print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
-        f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100))
+        f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100)) # Zapis OOB statistiky do textoveho souboru
         for band, importance in zip(bands, classifier.feature_importances_):
             print("Dulezitost pasma {} pro klasifikator je: {} %".format(band, importance * 100))
-            f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100))
+            f.write("Dulezitost pasma {} pro klasifikator je: {} %\n".format(band, importance * 100)) # Zapis dulezitosti jednotlivych parametru do textoveho souboru
 
-    X_train, X_test, y_train, y_test = model.train_test_split(X.values, y.values, test_size = 0.25)
-    classifier.fit(X_train, y_train)
-    pred_test = classifier.predict(X_test)
-    accurancy = metrics.accuracy_score(y_test, pred_test)
+    X_train, X_test, y_train, y_test = model.train_test_split(X.values, y.values, test_size = 0.25) # Rozdeleni trenovacich dat pro testovani klasifikatoru
+    classifier.fit(X_train, y_train) # Fitting vetsi casti trenovacich dat pro trenovavi
+    pred_test = classifier.predict(X_test) # Klasifikace testovaci casti 
+    accurancy = metrics.accuracy_score(y_test, pred_test) # Presnost
     print("Presnost: {} %".format(accurancy * 100))
-    kappa = metrics.cohen_kappa_score(y_test, pred_test)
+    kappa = metrics.cohen_kappa_score(y_test, pred_test) # Kappa koeficient
     print("Kappa koeficient: {}".format(kappa * 100))
     
     with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
-        f.write("Presnost: {} %\n".format(accurancy * 100))
-        f.write("Kappa koeficient: {}".format(kappa * 100))
+        f.write("Presnost: {} %\n".format(accurancy * 100)) # Zapis hodnoty presnosti do textoveho souboru 
+        f.write("Kappa koeficient: {}".format(kappa * 100)) # Zapis hodnoy Kappa koeficientu do textoveho souboru
 
-    class_image = classifier.predict(matrix_reshape)
+    class_image = classifier.predict(matrix_reshape) # Klasifikace matice obsahujici pasma a indexy
 
     print(".")
-    tvorba_rastru(class_image, rows, cols, crs, transform)
+    tvorba_rastru(class_image, height, width, crs, transform)
     return
 
-def tvorba_rastru(class_image, rows, cols, crs, transform):
+def tvorba_rastru(class_image, height, width, crs, transform):
 
     """
     Popis
     Vstup
     Vystup
     """
+    print(class_image)
 
-    print(class_image.shape, rows, cols)
-    class_image_reshape = class_image.reshape(cols, rows)
+    for pixel in class_image:
+        if class_image[pixel] == 1:
+            continue
+        else:
+            class_image[pixel] = 0
+    
+    print(class_image)
+
+    class_image_reshape = class_image.reshape(width, height)
 
     with rio.open("C:/Users/START/Desktop/!!!Data/class_image_test.tif",
                     mode = "w",
                     driver = "GTiff",
-                    height = rows,
-                    width = cols,
+                    height = height,
+                    width = width,
                     count = 1,
                     dtype = "float32",
                     crs = crs,
@@ -234,8 +239,7 @@ def tvorba_rastru(class_image, rows, cols, crs, transform):
 
 if __name__ == "__main__": 
     main() # Zavolani programu
-
-
+    
     #
     #print(blue[0, 15, 10])
     #print(red[0, 1, 1])
@@ -247,3 +251,5 @@ if __name__ == "__main__":
     #print(matrix_reshape[0, 153729])
     #print(matrix_reshape[2, 10981])
     #
+
+
