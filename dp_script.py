@@ -1,3 +1,4 @@
+from dbm import ndbm
 import rasterio as rio, numpy as np, os, scipy.ndimage as sp, time, pandas as pd, sklearn.metrics as metrics, sklearn.ensemble as scikit
 import pandas as pd, sklearn.model_selection as model
 
@@ -160,12 +161,9 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     AWEIsh = np.array(blue + 2.5 * green - 1.5 * (nir1 + swir1) - 0.25 * swir2, dtype = "float32") # Vypocet AWEIsh
     AWEInsh = np.array(4 * (green - swir1) - (0.25 * nir1 + 2.75 * swir2), dtype = "float32") # Vypocet AWEInsh
 
-
+    
     matrix_stack = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
-    print(matrix_stack.shape)
-    matrix = matrix_stack.reshape(matrix_stack.shape[1], matrix_stack.shape[0])
-    print(matrix.shape)
-    #tvorba_rastru(class_image, height, width, crs, transform)
+    matrix = matrix_stack.transpose() # Transpozice matice pro dalsi zpracovani
     klasifikator(matrix, X, y, height, width, crs, transform) # Zavolani nasledujici funkce
     return
 
@@ -238,17 +236,3 @@ def tvorba_rastru(class_image, height, width, crs, transform):
 
 if __name__ == "__main__": 
     main() # Zavolani programu
-    
-    #
-    #print(blue[0, 15, 10])
-    #print(red[0, 1, 1])
-    #    
-
-    #
-    #print(matrix_reshape)
-    #print(matrix_reshape.shape)
-    #print(matrix_reshape[0, 153729])
-    #print(matrix_reshape[2, 10981])
-    #
-
-
