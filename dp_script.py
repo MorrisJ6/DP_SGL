@@ -1,12 +1,12 @@
 import rasterio as rio, numpy as np, os, scipy.ndimage as sp, time, pandas as pd, sklearn.metrics as metrics, sklearn.ensemble as scikit
-import pandas as pd, sklearn.model_selection as model
+import pandas as pd, sklearn.model_selection as model, datetime as dt
 
 def main():
 
     """
     Hlavni funkce programu. Nacte cestu k souborum s daty Sentinel-2, spusti casovac a zavola funkci nacteni_dat.
     """
-
+    print(dt.datetime.now())
     starttime = time.perf_counter() # Spusteni casovace
     image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # Cesta ke slozce
     train_samples_file = "C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv"
@@ -169,7 +169,7 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
 def klasifikator(matrix, X, y, height, width, crs, transform):
 
     """
-    Popis
+    Popis 
     Vstup
     Vystup
     """
@@ -205,22 +205,35 @@ def klasifikator(matrix, X, y, height, width, crs, transform):
 
     class_image = classifier.predict(matrix) # Klasifikace matice obsahujici pasma a indexy
 
-    tvorba_rastru(class_image, height, width, crs, transform)
+    tvorba_binarni_rastru(class_image, height, width, crs, transform)
+    #tvorba_vystupu(class_image, height, width, crs, transform)
     return
 
-def tvorba_rastru(class_image, height, width, crs, transform):
+def tvorba_binarni_rastru(class_image, height, width, crs, transform):
+    for pixel in range(len(class_image)):
+        if class_image[pixel] == 1:
+            continue
+        elif class_image[pixel] != 1:
+            class_image[pixel] = 0
+    #print(l)
+    #class_list = np.array(l)
+    #print((np.min(class_image)), np.max(class_image))
+    tvorba_vystupu(class_image, height, width, crs, transform)
+    return
+
+
+def tvorba_vystupu(class_image, height, width, crs, transform):
 
     """
     Popis
     Vstup
     Vystup
     """
-    print(class_image)
 
 
     class_image_reshape = class_image.reshape(width, height)
 
-    with rio.open("C:/Users/START/Desktop/!!!Data/class_image_test.tif",
+    with rio.open("C:/Users/START/Desktop/!!!Data/class_image_testing_binary.tif",
                     mode = "w",
                     driver = "GTiff",
                     height = height,
