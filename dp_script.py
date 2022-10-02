@@ -8,10 +8,15 @@ def main():
     """
     print(dt.datetime.now())
     starttime = time.perf_counter() # Spusteni casovace
-    image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # Cesta ke slozce
+    image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210602T150911_N0300_R025_T22WEB_20210602T211653.SAFE/GRANULE/L2A_T22WEB_A031053_20210602T150912/IMG_DATA" # Cesta ke slozce
+    #image_dir = str(sys.argv[1])
     train_samples_file = "C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv"
-    output_name = "C:/Users/START/Desktop/!!!Data/output.tiff"
-    nacteni_dat(image_dir, train_samples_file, output_name) # Zavolani funkce nacteni_dat
+    #train_samples_file = str(sys.argv[2])
+    output_name = "C:/Users/START/Desktop/!!!Data/output_02_06_21.tiff"
+    #output_name = str(sys.argv[3])
+    name_acc_param = "C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters_02_06_21.txt"
+    #name_acc_param = str(sys.argv[4])
+    nacteni_dat(image_dir, train_samples_file, output_name, name_acc_param) # Zavolani funkce nacteni_dat
     stoptime = time.perf_counter() # Zastaveni casovace
     doba_behu = (stoptime - starttime) / 60 # Vypocet casu behu programu v minutach
 
@@ -24,7 +29,7 @@ def main():
     print("Program probehl uspesne.")
     exit(0)
 
-def nacteni_dat(imagedir, train_samples_file, output_name):
+def nacteni_dat(imagedir, train_samples_file, output_name, name_acc_param):
 
     """
     Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Zaroven pripravi trenovaci data pro dalsi praci a informace
@@ -141,10 +146,10 @@ def nacteni_dat(imagedir, train_samples_file, output_name):
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]] # Sloupce obsahuji hodnoty pixelu trenovacich dat pro jednotlive pasma a indexy
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
-    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name) # Zavolani nasleduji funkce
+    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name, name_acc_param) # Zavolani nasleduji funkce
     return
 
-def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name):
+def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name, name_acc_param):
 
     """
     Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
@@ -164,10 +169,10 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     
     matrix_stack = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
     matrix = matrix_stack.transpose() # Transpozice matice pro dalsi zpracovani
-    klasifikator(matrix, X, y, height, width, crs, transform, output_name) # Zavolani nasledujici funkce
+    klasifikator(matrix, X, y, height, width, crs, transform, output_name, name_acc_param) # Zavolani nasledujici funkce
     return
 
-def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
+def klasifikator(matrix, X, y, height, width, crs, transform, output_name, name_acc_param):
 
     """
     Popis 
@@ -185,7 +190,7 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
     data_frame["Prediction"] = classifier.predict(X) # 
     print(pd.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True)) # Matice zamen
 
-    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
+    with open(name_acc_param, "w") as f:
         print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
         f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100)) # Zapis OOB statistiky do textoveho souboru
         for band, importance in zip(bands, classifier.feature_importances_):
@@ -200,7 +205,7 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
     kappa = metrics.cohen_kappa_score(y_test, pred_test) # Kappa koeficient
     print("Kappa koeficient: {}".format(kappa * 100))
     
-    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
+    with open(name_acc_param, "a") as f:
         f.write("Presnost: {} %\n".format(accurancy * 100)) # Zapis hodnoty presnosti do textoveho souboru 
         f.write("Kappa koeficient: {}".format(kappa * 100)) # Zapis hodnoy Kappa koeficientu do textoveho souboru
 
@@ -223,8 +228,8 @@ def tvorba_binarni_rastru(class_image, height, width, crs, transform, output_nam
 def tvorba_vystupu(class_image, height, width, crs, transform, output_name):
 
     """
-    Popis
-    Vstup
+    Funkce prebere binarni rastr z predchoziho funkce spolu s popisnymi informacemi o finalnim rastru, ktery nasledne vytvori. 
+    Na vstupu jsou binarni vrstva  
     Vystup
     """
 
