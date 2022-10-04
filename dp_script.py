@@ -8,13 +8,13 @@ def main():
     """
     print(dt.datetime.now())
     starttime = time.perf_counter() # Spusteni casovace
-    image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210602T150911_N0300_R025_T22WEB_20210602T211653.SAFE/GRANULE/L2A_T22WEB_A031053_20210602T150912/IMG_DATA" # Cesta ke slozce
+    image_dir = "C:/Users/START/Desktop/!!!Data/S2B_MSIL2A_20210730T151809_N0301_R068_T22WED_20210730T193945.SAFE/GRANULE/L2A_T22WED_A022974_20210730T151823/IMG_DATA" # Cesta ke slozce
     #image_dir = str(sys.argv[1])
     train_samples_file = "C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv"
     #train_samples_file = str(sys.argv[2])
-    output_name = "C:/Users/START/Desktop/!!!Data/output_02_06_21.tiff"
+    output_name = "C:/Users/START/Desktop/!!!Data/output_30_07_21_WED.tiff"
     #output_name = str(sys.argv[3])
-    name_acc_param = "C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters_02_06_21.txt"
+    name_acc_param = "C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters_30_07_21_WED.txt"
     #name_acc_param = str(sys.argv[4])
     nacteni_dat(image_dir, train_samples_file, output_name, name_acc_param) # Zavolani funkce nacteni_dat
     stoptime = time.perf_counter() # Zastaveni casovace
@@ -32,10 +32,10 @@ def main():
 def nacteni_dat(imagedir, train_samples_file, output_name, name_acc_param):
 
     """
-    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Zaroven pripravi trenovaci data pro dalsi praci a informace
-    o rastru, ktery bude pozdeji vytvoren.
+    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Ty pak prevede do 1D matice, vytvori tedy seznam hodnot. 
+    Zaroven pripravi trenovaci data pro dalsi praci a informace o rastru, ktery bude pozdeji vytvoren.
     Vstupem je slozka obsahujici vstupni rastry Sentinel-2 a csv soubor obsahujici trenovaci data.
-    Vystupem jsou nactene rastry prevedene do numpy matic, ktere vstupuji do zavolene funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data 
+    Vystupem jsou nactene rastry prevedene do 1D numpy matic, ktere vstupuji do zavolane funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data 
     a udaje o rastru.  
     """ 
 
@@ -152,7 +152,7 @@ def nacteni_dat(imagedir, train_samples_file, output_name, name_acc_param):
 def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name, name_acc_param):
 
     """
-    Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
+    Funkce vypocita 5 indexu ze seznamu hodnot nactenych v predchozi funkci. Nasledne jsou vsechny seznamu seskupeny do numpy stacku, cimz vytvori 2D matici
     o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a informace
     o puvodnich rastrech dalsi funkci.
     Vstupem jsou numpy matice z predchozi funkce a promenne vytvorene z trenovacich dat.
@@ -216,6 +216,13 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name, name_
     return
 
 def tvorba_binarni_rastru(class_image, height, width, crs, transform, output_name):
+
+    """
+    Funkce projde vsechny klasifikovane pixely a precte jejich hodnoty. Pokud se hodnota rovna 1 (vodni plocha), hodnota zustane stejna. 
+    Pokud se hodnota nerovna 1, hodnota pixelu je zmenena na nulu. Tim vznikne binarni rada hodnot. 
+    Vstupem je 1D matice hodnot vytvorena pomoci klasifikatoru v predchozi funkci. Spolu s matici funkce prebira informace o rastru.
+    Vystupem teto funkce je binarni matice oznacujici vodni (1) a jine plochy (0) spolu s informacemi o puvodnim rastru.
+    """
     for pixel in range(len(class_image)):
         if class_image[pixel] == 1:
             continue
@@ -228,9 +235,10 @@ def tvorba_binarni_rastru(class_image, height, width, crs, transform, output_nam
 def tvorba_vystupu(class_image, height, width, crs, transform, output_name):
 
     """
-    Funkce prebere binarni rastr z predchoziho funkce spolu s popisnymi informacemi o finalnim rastru, ktery nasledne vytvori. 
-    Na vstupu jsou binarni vrstva  
-    Vystup
+    Funkce prebere binarni seznam hodnot z predchoziho funkce spolu s popisnymi informacemi o finalnim rastru. Nejdrive je seznam preveden 
+    na matici o stejne velikosti jako mela puvodni data a pote je vytvoren finalni binarni rastr.
+    Na vstupu jsou binarni data vytvorena z klasifikovaneho seznamu hodnot. Dalsimi vstupy jsou informace o rastru.
+    Vystupem je GTIFF binarni rastr vodnich a "nevodnich" ploch. 
     """
 
 
