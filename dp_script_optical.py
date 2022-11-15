@@ -8,13 +8,17 @@ def main():
     """
     print(dt.datetime.now())
     starttime = time.perf_counter() # Spusteni casovace
-    #image_dir = "C:/Users/START/Desktop/!!!Data/S2A_MSIL2A_20210605T151911_N0300_R068_T22WEC_20210605T194737.SAFE/GRANULE/L2A_T22WEC_A031096_20210605T151910/IMG_DATA" # Cesta ke slozce
-    image_dir = str(sys.argv[1])
-    #train_samples_file = "C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv"
-    train_samples_file = str(sys.argv[2])
-    #output_name = "C:/Users/START/Desktop/!!!Data/output.tiff"
-    output_name = str(sys.argv[3])
-    nacteni_dat(image_dir, train_samples_file, output_name) # Zavolani funkce nacteni_dat
+    image_dir_optical = "C:/Users/START/Desktop/!!!Data/S2B_MSIL2A_20210730T151809_N0301_R068_T22WED_20210730T193945.SAFE/GRANULE/L2A_T22WED_A022974_20210730T151823/IMG_DATA" # Cesta ke slozce
+    #image_dir_optical = str(sys.argv[1])
+    #image_dir_sar = "C:/Users/START/Desktop/!!!Data/S1A_IW_GRDH_1SDH_20210802T095223_20210802T095248_039049_049B89_FFDF.SAFE/measurement/"
+    #image_dir_sar = str(sys.argv[2])
+    train_samples_file = "C:/Users/START/Desktop/!!!Data/roi_body_tecka.csv"
+    #train_samples_file = str(sys.argv[3])
+    output_name = "C:/Users/START/Desktop/!!!Data/output_30_07_21_WED.tiff"
+    #output_name = str(sys.argv[4])
+    name_acc_param = "C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters_30_07_21_WED.txt"
+    #name_acc_param = str(sys.argv[5])
+    nacteni_dat(image_dir_optical, train_samples_file, output_name, name_acc_param) # Zavolani funkce nacteni_dat
     stoptime = time.perf_counter() # Zastaveni casovace
     doba_behu = (stoptime - starttime) / 60 # Vypocet casu behu programu v minutach
 
@@ -27,18 +31,18 @@ def main():
     print("Program probehl uspesne.")
     exit(0)
 
-def nacteni_dat(imagedir, train_samples_file, output_name):
+def nacteni_dat(image_dir_optical, train_samples_file, output_name, name_acc_param):
 
     """
-    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Zaroven pripravi trenovaci data pro dalsi praci a informace
-    o rastru, ktery bude pozdeji vytvoren.
+    Funkce projde danou slozku, nacte rastry Sentinel-2 a prevede je do numpy matic. Ty pak prevede do 1D matice, vytvori tedy seznam hodnot. 
+    Zaroven pripravi trenovaci data pro dalsi praci a informace o rastru, ktery bude pozdeji vytvoren.
     Vstupem je slozka obsahujici vstupni rastry Sentinel-2 a csv soubor obsahujici trenovaci data.
-    Vystupem jsou nactene rastry prevedene do numpy matic, ktere vstupuji do zavolene funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data 
+    Vystupem jsou nactene rastry prevedene do 1D numpy matic, ktere vstupuji do zavolane funkce vypoctu indexu. Spolu s nimi pak pokracuji i trenovaci data 
     a udaje o rastru.  
     """ 
 
-    dirr10m = str(imagedir + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
-    dirr20m = str(imagedir + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
+    dirr10m = str(image_dir_optical + "/R10m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 10m
+    dirr20m = str(image_dir_optical + "/R20m/") # cesta ke slozce obsahujici Sentinel-2 snimky s rozlisenim 20m
 
     f = os.path.exists(dirr10m)
     if f == True:    
@@ -81,6 +85,7 @@ def nacteni_dat(imagedir, train_samples_file, output_name):
     else: 
         print("Slozka obsahujici rastry s rozlisenim 10m neexistuje!")
         exit(1)
+    del f
 
     f = os.path.exists(dirr20m)
     if f == True:     
@@ -139,18 +144,19 @@ def nacteni_dat(imagedir, train_samples_file, output_name):
     else:
         print("Slozka obsahujici rastry s rozlisenim 20m neexistuje!")
         exit(1)
+    del f
 
     train_samples = pd.read_csv(train_samples_file, sep = ";") # Cteni souboru s trenovacimi daty ve formatu csv
     X = train_samples[["blue","green","red","rededge1","rededge2","rededge3","nir1","nir2","swir1","swir2","AWEInsh","AWEIsh","NDSI","NDWIICE","TCwet"]] # Sloupce obsahuji hodnoty pixelu trenovacich dat pro jednotlive pasma a indexy
     y = train_samples["typ"] # Sloupec s typem landcoveru
 
-    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name) # Zavolani nasleduji funkce
+    vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name, name_acc_param) # Zavolani nasleduji funkce
     return
 
-def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name):
+def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, swir1, swir2, X, y, crs, transform, height, width, output_name, name_acc_param):
 
     """
-    Funkce vypocita 5 indexu z matic nactenych v predchozi funkci. Dale pak vytvori vicerozmernou matici, kterou prevede na 2D matici 
+    Funkce vypocita 5 indexu ze seznamu hodnot nactenych v predchozi funkci. Nasledne jsou vsechny seznamu seskupeny do numpy stacku, cimz vytvori 2D matici
     o velikosti [pocet pasem (15), pocet sloupcu krat pocet radku (120 560 400)]. Funkce zaroven postoupi trenovaci data a informace
     o puvodnich rastrech dalsi funkci.
     Vstupem jsou numpy matice z predchozi funkce a promenne vytvorene z trenovacich dat.
@@ -167,10 +173,10 @@ def vypocet_indexu(blue, green, red, nir1, rededge1, rededge2, rededge3, nir2, s
     
     matrix_stack = np.stack((blue, green, red, rededge1, rededge2, rededge3, nir1, nir2, swir1, swir2, AWEInsh, AWEIsh, NDSI, NDWIice, TCwet), axis = 0) # Vytvoreni vicerozmerne matice obsahujici vsech pasma a indexy
     matrix = matrix_stack.transpose() # Transpozice matice pro dalsi zpracovani
-    klasifikator(matrix, X, y, height, width, crs, transform, output_name) # Zavolani nasledujici funkce
+    klasifikator(matrix, X, y, height, width, crs, transform, output_name, name_acc_param) # Zavolani nasledujici funkce
     return
 
-def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
+def klasifikator(matrix, X, y, height, width, crs, transform, output_name, name_acc_param):
 
     """
     Popis 
@@ -188,7 +194,7 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
     data_frame["Prediction"] = classifier.predict(X) # 
     print(pd.crosstab(data_frame['ROI'], data_frame['Prediction'], margins=True)) # Matice zamen
 
-    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "w") as f:
+    with open(name_acc_param, "w") as f:
         print("Predpoved OOB predikce je: {} %".format(classifier.oob_score_ * 100))
         f.write("Predpoved OOB predikce je: {} %\n".format(classifier.oob_score_ * 100)) # Zapis OOB statistiky do textoveho souboru
         for band, importance in zip(bands, classifier.feature_importances_):
@@ -203,7 +209,7 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
     kappa = metrics.cohen_kappa_score(y_test, pred_test) # Kappa koeficient
     print("Kappa koeficient: {}".format(kappa * 100))
     
-    with open("C:/Users/START/Desktop/!!!Data/Accuracy_and_parameters.txt", "a") as f:
+    with open(name_acc_param, "a") as f:
         f.write("Presnost: {} %\n".format(accurancy * 100)) # Zapis hodnoty presnosti do textoveho souboru 
         f.write("Kappa koeficient: {}".format(kappa * 100)) # Zapis hodnoy Kappa koeficientu do textoveho souboru
 
@@ -214,6 +220,13 @@ def klasifikator(matrix, X, y, height, width, crs, transform, output_name):
     return
 
 def tvorba_binarni_rastru(class_image, height, width, crs, transform, output_name):
+
+    """
+    Funkce projde vsechny klasifikovane pixely a precte jejich hodnoty. Pokud se hodnota rovna 1 (vodni plocha), hodnota zustane stejna. 
+    Pokud se hodnota nerovna 1, hodnota pixelu je zmenena na nulu. Tim vznikne binarni rada hodnot. 
+    Vstupem je 1D matice hodnot vytvorena pomoci klasifikatoru v predchozi funkci. Spolu s matici funkce prebira informace o rastru.
+    Vystupem teto funkce je binarni matice oznacujici vodni (1) a jine plochy (0) spolu s informacemi o puvodnim rastru.
+    """
     for pixel in range(len(class_image)):
         if class_image[pixel] == 1:
             continue
@@ -226,9 +239,10 @@ def tvorba_binarni_rastru(class_image, height, width, crs, transform, output_nam
 def tvorba_vystupu(class_image, height, width, crs, transform, output_name):
 
     """
-    Popis
-    Vstup
-    Vystup
+    Funkce prebere binarni seznam hodnot z predchoziho funkce spolu s popisnymi informacemi o finalnim rastru. Nejdrive je seznam preveden 
+    na matici o stejne velikosti jako mela puvodni data a pote je vytvoren finalni binarni rastr.
+    Na vstupu jsou binarni data vytvorena z klasifikovaneho seznamu hodnot. Dalsimi vstupy jsou informace o rastru.
+    Vystupem je GTIFF binarni rastr vodnich a "nevodnich" ploch. 
     """
 
 
@@ -248,4 +262,3 @@ def tvorba_vystupu(class_image, height, width, crs, transform, output_name):
     return
 
 if __name__ == "__main__": 
-    main() # Zavolani programu
